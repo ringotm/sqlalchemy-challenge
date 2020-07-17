@@ -7,6 +7,8 @@ from sqlalchemy import create_engine, func, inspect
 
 import datetime as dt
 
+import numpy as np
+
 engine = create_engine("sqlite:///Resources/hawaii.sqlite")
 
 Base = automap_base()
@@ -22,10 +24,11 @@ app = Flask(__name__)
 def welcome():
     return (
         f"Available Routes:<br/>"
-
         f"/api/v1.0/precipitation<br/>"
         f"/api/v1.0/stations<br/>"
-        f"/api/v1.0/tobs"
+        f"/api/v1.0/tobs<br/>"
+        f"/api/v1.0/<start><br/>"
+        f"/api/v1.0/<start>/<end>"
     )
 
 @app.route('/api/v1.0/precipitation')
@@ -72,11 +75,39 @@ def tobs():
 
     session.close()
 
-    #one_year_temp_most_active = [one_year_temp_most_active[i][j] for i in range(len(one_year_temp_most_active)) for j in range(len(one_year_temp_most_active))]
-    #one_year_temp_most_active = [(date, temp) for (date, temp) in range(len(one_year_temp_most_active))]
-    #flat_list = [item for sublist in l for item in sublist]
-    one_year_temp_most_active = [item for sublist in one_year_temp_most_active for item in sublist]
     return jsonify(one_year_temp_most_active)
+
+@app.route('/api/v1.0/<start>')
+def data_from_start_date(start):
+
+    session = Session(engine)
+
+    temp_data = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs))\
+    .filter(func.strftime("%Y-%m-%d", Measurement.date) >= start).all()
+
+    temp_dict = {}
+    for min, avg, max in temp_data:
+        temp_dict['Minimum Temperature'] = round(min,2)
+        temp_dict['Average Temperature'] = round(avg,2)
+        temp_dict['Maximum Temperature'] = round(max,2)
+
+    return jsonify(temp_dict)
+
+@app.route('/api/v1.0/<start>/<end>')
+def data_from_range(start, end):
+
+    session = Session(engine)
+
+    temp_data = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs))\
+    .filter(func.strftime("%Y-%m-%d", Measurement.date) >= start).filter(func.strftime("%Y-%m-%d", Measurement.date) <=end).all()
+
+    temp_dict = {}
+    for min, avg, max in temp_data:
+        temp_dict['Minimum Temperature'] = round(min,2)
+        temp_dict['Average Temperature'] = round(avg,2)
+        temp_dict['Maximum Temperature'] = round(max,2)
+
+    return jsonify(temp_dict)
 
 if __name__ == "__main__":
     app.run(debug=True)
